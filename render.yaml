@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: chat-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    rootDir: backend
+    envVars:
+      - key: SUPABASE_URL
+        value: ""
+      - key: SUPABASE_ANON_KEY
+        value: ""
+      - key: FRONTEND_URL
+        value: "http://localhost:3000"
+      - key: PORT
+        value: "4000"
