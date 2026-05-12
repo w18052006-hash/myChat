@@ -52,13 +52,11 @@ const markUserOfflineIfNeeded = async (token: string, userId: string) => {
 
   userConnectionCounts.delete(userId);
   const userSupabase = createUserSupabaseClient(token);
-  await userSupabase
-    .from("user_status")
-    .upsert({
-      user_id: userId,
-      status: "offline",
-      last_seen: new Date().toISOString(),
-    });
+  await userSupabase.from("user_status").upsert({
+    user_id: userId,
+    status: "offline",
+    last_seen: new Date().toISOString(),
+  });
   io.emit("user_offline", userId);
 };
 
@@ -113,34 +111,36 @@ io.on("connection", (socket) => {
   // Handle sending message
   socket.on(
     "send_message",
-    async (data: {
-      conversationId: string;
-      encryptedContent: string;
-      nonce: string;
-      encryptedKeyForSender?: string;
-      encryptedKeyForRecipient?: string;
-      keyNonceForSender?: string;
-      keyNonceForRecipient?: string;
-      clientId?: string;
-    },
-    ack?: (response: {
-      ok: boolean;
-      message?: {
-        id: string;
-        clientId?: string;
+    async (
+      data: {
         conversationId: string;
-        senderId: string;
         encryptedContent: string;
         nonce: string;
-        encryptedKeyForSender?: string | null;
-        encryptedKeyForRecipient?: string | null;
-        keyNonceForSender?: string | null;
-        keyNonceForRecipient?: string | null;
-        timestamp: string;
-        readAt: string | null;
-      };
-      error?: string;
-    }) => void) => {
+        encryptedKeyForSender?: string;
+        encryptedKeyForRecipient?: string;
+        keyNonceForSender?: string;
+        keyNonceForRecipient?: string;
+        clientId?: string;
+      },
+      ack?: (response: {
+        ok: boolean;
+        message?: {
+          id: string;
+          clientId?: string;
+          conversationId: string;
+          senderId: string;
+          encryptedContent: string;
+          nonce: string;
+          encryptedKeyForSender?: string | null;
+          encryptedKeyForRecipient?: string | null;
+          keyNonceForSender?: string | null;
+          keyNonceForRecipient?: string | null;
+          timestamp: string;
+          readAt: string | null;
+        };
+        error?: string;
+      }) => void,
+    ) => {
       try {
         const userSupabase = createUserSupabaseClient(socket.data.token);
         const timestamp = new Date().toISOString();
@@ -159,16 +159,19 @@ io.on("connection", (socket) => {
             key_nonce_for_recipient: data.keyNonceForRecipient ?? null,
             timestamp,
           })
-          .select("id, conversation_id, sender_id, encrypted_content, nonce, encrypted_key_for_sender, encrypted_key_for_recipient, key_nonce_for_sender, key_nonce_for_recipient, timestamp, read_at")
+          .select(
+            "id, conversation_id, sender_id, encrypted_content, nonce, encrypted_key_for_sender, encrypted_key_for_recipient, key_nonce_for_sender, key_nonce_for_recipient, timestamp, read_at",
+          )
           .single();
 
         if (error) throw error;
 
-        const { data: conversation, error: conversationError } = await userSupabase
-          .from("conversations")
-          .select("participant1_id, participant2_id")
-          .eq("id", data.conversationId)
-          .single();
+        const { data: conversation, error: conversationError } =
+          await userSupabase
+            .from("conversations")
+            .select("participant1_id, participant2_id")
+            .eq("id", data.conversationId)
+            .single();
 
         if (conversationError) throw conversationError;
 
@@ -193,7 +196,9 @@ io.on("connection", (socket) => {
         };
 
         socket.emit("message_sent", payload);
-        socket.to([data.conversationId, recipientId]).emit("new_message", payload);
+        socket
+          .to([data.conversationId, recipientId])
+          .emit("new_message", payload);
         ack?.({ ok: true, message: payload });
       } catch (err) {
         console.error("Error sending message:", err);
